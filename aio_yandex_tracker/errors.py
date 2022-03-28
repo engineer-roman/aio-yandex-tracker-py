@@ -2,21 +2,29 @@ class ApiUnknownError(BaseException):
     pass
 
 
-class ApiRawError(BaseException):
+class HTTPError(BaseException):
     pass
 
 
-class ApiUnavailableError(BaseException):
+class ApiError(HTTPError):
     pass
 
 
-class ApiBadRequestError(BaseException):
+class ApiUnavailableError(HTTPError):
     pass
 
 
-class IncorrectDataError(BaseException):
+class ApiBadRequestError(HTTPError):
+    pass
+
+
+class IncorrectDataError(HTTPError):
     pass
 
 
 class SessionIsNotInitialized(BaseException):
+    pass
+
+
+class UnknownHttpMethod(BaseException):
     pass
