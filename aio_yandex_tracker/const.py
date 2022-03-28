@@ -5,6 +5,7 @@ API_HEADERS_DEFAULT = {"Content-type": "application/json"}
 API_URL_ROOT = "https://api.tracker.yandex.net"
 
 HTTP_METHODS = ["get", "post", "put", "delete"]
+RESPONSE_ENCODING_DEFAULT = "utf-8"
 RESPONSE_CODES_OK = (
     HTTPStatus.OK,
     HTTPStatus.CREATED,

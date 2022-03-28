@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 from aio_yandex_tracker import const, errors
+from aio_yandex_tracker.models.http import HTTPResponse
 from aio_yandex_tracker.types import HEADERS_OBJECT
 from aiohttp import ClientResponse, ClientSession
 
@@ -13,6 +14,7 @@ class HttpSession:
         api_root: Optional[str] = None,
         api_version: Optional[str] = None,
         headers: Optional[HEADERS_OBJECT] = None,
+        response_encoding: str = const.RESPONSE_ENCODING_DEFAULT,
     ):
         api_root = api_root or const.API_URL_ROOT
         api_version = api_version or const.API_VERSION_NAME.V2.value
@@ -25,16 +27,18 @@ class HttpSession:
             "Authorization": f"OAuth {token}",
             "X-Org-ID": str(org_id),
         }
+        self.response_encoding = response_encoding
         self.__session: Optional[ClientSession] = ClientSession(
             headers=self.headers
         )
 
     async def request(
         self, method: str, url: str, *args, **kwargs
-    ) -> ClientResponse:
+    ) -> HTTPResponse:
         retry = 0
         retry_limit = 0
         response = await self.__send_request(method, url, *args, **kwargs)
+        # FIXME add retries settings
         while retry < retry_limit and self.retry_needed(response):
             response = await self.__send_request(method, url, *args, **kwargs)
             if not self.retry_needed(response):
@@ -42,8 +46,13 @@ class HttpSession:
             retry += 1
             # FIXME add logging
 
-        await self.validate_http_response(response)
-        return response
+        await self.validate_http_response(response, self.response_encoding)
+        return HTTPResponse(
+            response.status,
+            response.reason,
+            response.url.human_repr(),
+            (await response.json(encoding=self.response_encoding)),
+        )
 
     async def __send_request(
         self, method: str, url: str, *args, **kwargs
@@ -66,7 +75,7 @@ class HttpSession:
 
     @staticmethod
     async def validate_http_response(
-        response: ClientResponse, encoding="utf-8"
+        response: ClientResponse, encoding=const.RESPONSE_ENCODING_DEFAULT
     ) -> None:
         if response.status in const.RESPONSE_CODES_OK:
             return
@@ -80,7 +89,7 @@ class HttpSession:
         exc_class = errors.HTTP_ERRORS_MAPPING.get(
             response.status, errors.ApiUnavailableError
         )(
-            f"API Error received for URL {response.url}",
+            f"API Error received for URL {response.url.human_repr()}",
             response.status,
             response.reason,
             error_body,
