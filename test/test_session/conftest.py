@@ -1,22 +1,36 @@
-from typing import Tuple
+from typing import Callable, Tuple
 
-from aio_yandex_tracker import types
+from aio_yandex_tracker import const, types
 from aio_yandex_tracker.session import HttpSession
 from pytest import fixture
 
 
 @fixture
-def base_session() -> HttpSession:
-    return HttpSession("Test Token", 12345)
-
-
-@fixture
-def customized_session() -> Tuple[types.SESSION_PRESET, HttpSession]:
+def base_session() -> Callable:
     session_preset = {
         "token": "Test Token",
         "org_id": 12345,
-        "api_root": "http://localhost.localdomain",
-        "api_version": "123",
+    }
+
+    def get_session(loop=None):
+        return HttpSession(**session_preset, loop=loop)
+
+    return get_session
+
+
+@fixture
+def customized_session() -> Tuple[Callable, types.SESSION_PRESET]:
+    session_preset = {
+        "token": "Test Token",
+        "org_id": 12345,
+        "api_root": (
+            f"http://localhost.localdomain:{const.TEST_AIOHTTP_SERVER_PORT}"
+        ),
+        "api_version": "3",
         "headers": {"X-Custom-Header": "custom_value"},
     }
-    return session_preset, HttpSession(**session_preset)
+
+    def get_session(loop=None):
+        return HttpSession(**session_preset, loop=loop)
+
+    return get_session, session_preset
