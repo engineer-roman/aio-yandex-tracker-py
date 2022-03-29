@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from typing import Optional, Union
 
 from aio_yandex_tracker import const, errors
@@ -33,29 +34,38 @@ class HttpSession:
         )
 
     async def request(
-        self, method: str, url: str, *args, **kwargs
+        self, method: str, endpoint: str, *args, **kwargs
     ) -> HTTPResponse:
         retry = 0
         retry_limit = 0
-        response = await self.__send_request(method, url, *args, **kwargs)
+        response = await self.__send_request(
+            method, self.base_url + endpoint, *args, **kwargs
+        )
         # FIXME add retries settings
         while retry < retry_limit and self.retry_needed(response):
-            response = await self.__send_request(method, url, *args, **kwargs)
+            response = await self.__send_request(
+                method, self.base_url + endpoint, *args, **kwargs
+            )
             if not self.retry_needed(response):
                 break
             retry += 1
             # FIXME add logging
 
         await self.validate_http_response(response, self.response_encoding)
+        try:
+            data = await response.json(encoding=self.response_encoding)
+        except JSONDecodeError:
+            data = await response.text(encoding=self.response_encoding)
+
         return HTTPResponse(
             response.status,
             response.reason,
             response.url.human_repr(),
-            (await response.json(encoding=self.response_encoding)),
+            data,
         )
 
     async def __send_request(
-        self, method: str, url: str, *args, **kwargs
+        self, method: str, endpoint: str, *args, **kwargs
     ) -> ClientResponse:
         if not self.is_active:
             raise errors.SessionIsNotInitialized(
@@ -63,7 +73,7 @@ class HttpSession:
             )
         http_method = self.validate_http_method(self.__session, method)
         try:
-            return await http_method(url, *args, **kwargs)
+            return await http_method(endpoint, *args, **kwargs)
         except Exception as exc:
             raise errors.ApiUnknownError(f"{exc.__class__.__name__} - {exc}")
 
