@@ -30,7 +30,7 @@ class YandexTracker:
             response_encoding,
             loop,
         )
-        self.__issues = api_models.Issue(self.__session)
+        self.__issues = api_models.Issues(self.__session)
 
     @property
     def issues(self):

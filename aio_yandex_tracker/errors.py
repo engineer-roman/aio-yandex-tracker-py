@@ -54,6 +54,10 @@ class UnknownHttpMethod(BaseException):
     pass
 
 
+class FieldMissingError(BaseException):
+    pass
+
+
 HTTP_ERRORS_MAPPING = {
     HTTPStatus.BAD_REQUEST: ApiBadRequestError,
     HTTPStatus.UNPROCESSABLE_ENTITY: IncorrectDataError,
