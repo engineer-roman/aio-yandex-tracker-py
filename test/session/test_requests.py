@@ -2,6 +2,7 @@ from json import dumps
 
 from aio_yandex_tracker import const
 from aiohttp import ClientRequest, web
+from hamcrest import assert_that, equal_to
 
 
 async def response_plain_cb(request: ClientRequest):
@@ -34,7 +35,7 @@ async def test_get_request(aiohttp_server, customized_session):
     await aiohttp_server(app, port=const.TEST_AIOHTTP_SERVER_PORT)
     resp = await session.request("get", "/test_get")
 
-    assert resp.status == 200
+    assert_that(resp.status, equal_to(200))
 
 
 async def test_post_put_request(aiohttp_server, customized_session):
@@ -52,10 +53,10 @@ async def test_post_put_request(aiohttp_server, customized_session):
 
     await aiohttp_server(app, port=const.TEST_AIOHTTP_SERVER_PORT)
     resp = await session.request("post", "/test_post")
-    assert resp.status == 201
+    assert_that(resp.status, equal_to(201))
 
     resp = await session.request("put", "/test_put")
-    assert resp.status == 201
+    assert_that(resp.status, equal_to(201))
 
 
 async def test_delete_request(aiohttp_server, customized_session):
@@ -70,4 +71,4 @@ async def test_delete_request(aiohttp_server, customized_session):
 
     await aiohttp_server(app, port=const.TEST_AIOHTTP_SERVER_PORT)
     resp = await session.request("delete", "/test_delete")
-    assert resp.status == 204
+    assert_that(resp.status, equal_to(204))
