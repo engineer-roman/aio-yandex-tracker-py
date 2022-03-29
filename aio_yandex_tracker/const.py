@@ -22,3 +22,7 @@ RESPONSE_CODES_RETRY = (
 class API_VERSION_NAME(Enum):
     V1 = "v1"
     V2 = "v2"
+
+
+# Tests
+TEST_AIOHTTP_SERVER_PORT = 20001
