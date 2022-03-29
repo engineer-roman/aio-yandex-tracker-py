@@ -24,9 +24,10 @@ def customized_session() -> Tuple[Callable, types.SESSION_PRESET]:
         "token": "Test Token",
         "org_id": 12345,
         "api_root": (
-            f"http://localhost.localdomain:{const.TEST_AIOHTTP_SERVER_PORT}"
+            f"localhost.localdomain:{const.TEST_AIOHTTP_SERVER_PORT}"
         ),
         "api_version": "3",
+        "api_schema": "http",
         "headers": {"X-Custom-Header": "custom_value"},
     }
 
