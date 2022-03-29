@@ -1,3 +1,4 @@
+from asyncio import AbstractEventLoop
 from json import JSONDecodeError
 from typing import Optional, Union
 
@@ -16,6 +17,7 @@ class HttpSession:
         api_version: Optional[str] = None,
         headers: Optional[HEADERS_OBJECT] = None,
         response_encoding: str = const.RESPONSE_ENCODING_DEFAULT,
+        loop: Optional[AbstractEventLoop] = None,
     ):
         api_root = api_root or const.API_URL_ROOT
         api_version = api_version or const.API_VERSION_NAME.V2.value
@@ -30,7 +32,7 @@ class HttpSession:
         }
         self.response_encoding = response_encoding
         self.__session: Optional[ClientSession] = ClientSession(
-            headers=self.headers
+            headers=self.headers, loop=loop
         )
 
     async def request(
@@ -99,9 +101,10 @@ class HttpSession:
         exc_class = errors.HTTP_ERRORS_MAPPING.get(
             response.status, errors.ApiUnavailableError
         )(
-            f"API Error received for URL {response.url.human_repr()}",
+            f"Request failed: {response.status} - {response.reason}",
             response.status,
             response.reason,
+            response.url.human_repr(),
             error_body,
         )
         raise exc_class

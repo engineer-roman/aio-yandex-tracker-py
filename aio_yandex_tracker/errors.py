@@ -8,12 +8,18 @@ class ApiUnknownError(BaseException):
 
 class HTTPError(BaseException):
     def __init__(
-        self, message: str, status_code: int, reason: str, response_body: Any
+        self,
+        message: str,
+        status_code: int,
+        reason: str,
+        url: str,
+        response_body: Any,
     ):
         super().__init__(message)
         self.status_code = status_code
         self.reason = reason
         self.response_body = response_body
+        self.url = url
 
 
 class AuthRequiredError(HTTPError):
