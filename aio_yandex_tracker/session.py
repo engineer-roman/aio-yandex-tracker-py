@@ -1,11 +1,10 @@
 from asyncio import AbstractEventLoop
-from json import JSONDecodeError
 from typing import Optional, Union
 
 from aio_yandex_tracker import const, errors
 from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.types import HEADERS_OBJECT
-from aiohttp import ClientResponse, ClientSession, ContentTypeError
+from aiohttp import ClientResponse, ClientSession
 
 
 class HttpSession:
@@ -56,17 +55,12 @@ class HttpSession:
             # FIXME add logging
 
         await self.validate_http_response(response, self.response_encoding)
-        try:
-            data = await response.json(encoding=self.response_encoding)
-        except (ContentTypeError, JSONDecodeError):
-            data = await response.text(encoding=self.response_encoding)
-
         return HttpResponse(
             response.status,
             response.reason,
             response.url.human_repr(),
             response.headers,
-            data,
+            await response.json(encoding=self.response_encoding),
         )
 
     async def __send_request(
