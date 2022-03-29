@@ -23,7 +23,7 @@ class HttpSession:
         api_root = api_root or const.API_URL_ROOT
         api_version = api_version or const.API_VERSION_NAME.V2.value
         api_schema = api_schema or const.API_URL_SCHEMA
-        self.base_url = f"{api_schema}://{api_root}/{api_version}/"
+        self.base_url = f"{api_schema}://{api_root}/{api_version}"
         user_headers = headers or {}
         self.headers = {
             **const.API_HEADERS_DEFAULT,
