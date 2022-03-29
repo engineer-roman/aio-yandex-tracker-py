@@ -3,10 +3,9 @@ from types import TracebackType
 from typing import Optional, Type, Union
 
 from aio_yandex_tracker import const
+from aio_yandex_tracker.models import api as api_models
 from aio_yandex_tracker.session import HttpSession
 from aio_yandex_tracker.types import HEADERS_OBJECT
-
-# from aio_yandex_tracker.models.tracker import Issues
 
 
 class YandexTracker:
@@ -31,11 +30,11 @@ class YandexTracker:
             response_encoding,
             loop,
         )
-        # self.__issues = Issues(self.__session)
+        self.__issues = api_models.Issue(self.__session)
 
-    # @property
-    # def issues(self):
-    #     return self.__issues
+    @property
+    def issues(self):
+        return self.__issues
 
     @property
     def is_closed(self):
