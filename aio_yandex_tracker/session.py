@@ -63,6 +63,7 @@ class HttpSession:
             response.status,
             response.reason,
             response.url.human_repr(),
+            response.headers,
             data,
         )
 
@@ -106,6 +107,7 @@ class HttpSession:
             response.reason,
             response.url.human_repr(),
             error_body,
+            response.headers,
         )
         raise exc_class
 

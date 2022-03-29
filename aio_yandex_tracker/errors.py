@@ -1,5 +1,7 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Optional
+
+from aio_yandex_tracker import types
 
 
 class ApiUnknownError(BaseException):
@@ -14,10 +16,12 @@ class HTTPError(BaseException):
         reason: str,
         url: str,
         response_body: Any,
+        headers: Optional[types.HEADERS_OBJECT] = None,
     ):
         super().__init__(message)
         self.status_code = status_code
         self.reason = reason
+        self.headers = headers
         self.response_body = response_body
         self.url = url
 
