@@ -3,7 +3,7 @@ from json import JSONDecodeError
 from typing import Optional, Union
 
 from aio_yandex_tracker import const, errors
-from aio_yandex_tracker.models.http import HTTPResponse
+from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.types import HEADERS_OBJECT
 from aiohttp import ClientResponse, ClientSession
 
@@ -37,7 +37,7 @@ class HttpSession:
 
     async def request(
         self, method: str, endpoint: str, *args, **kwargs
-    ) -> HTTPResponse:
+    ) -> HttpResponse:
         retry = 0
         retry_limit = 0
         response = await self.__send_request(
@@ -59,7 +59,7 @@ class HttpSession:
         except JSONDecodeError:
             data = await response.text(encoding=self.response_encoding)
 
-        return HTTPResponse(
+        return HttpResponse(
             response.status,
             response.reason,
             response.url.human_repr(),

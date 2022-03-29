@@ -3,7 +3,7 @@ from typing import Dict
 from aio_yandex_tracker import types
 
 
-class HTTPResponse:
+class HttpResponse:
     def __init__(
         self,
         status: int,

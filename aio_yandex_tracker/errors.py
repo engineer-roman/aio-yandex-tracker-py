@@ -8,7 +8,7 @@ class ApiUnknownError(BaseException):
     pass
 
 
-class HTTPError(BaseException):
+class HttpError(BaseException):
     def __init__(
         self,
         message: str,
@@ -26,23 +26,23 @@ class HTTPError(BaseException):
         self.url = url
 
 
-class AuthRequiredError(HTTPError):
+class AuthRequiredError(HttpError):
     pass
 
 
-class NotFoundError(HTTPError):
+class NotFoundError(HttpError):
     pass
 
 
-class ApiUnavailableError(HTTPError):
+class ApiUnavailableError(HttpError):
     pass
 
 
-class ApiBadRequestError(HTTPError):
+class ApiBadRequestError(HttpError):
     pass
 
 
-class IncorrectDataError(HTTPError):
+class IncorrectDataError(HttpError):
     pass
 
 
