@@ -72,7 +72,7 @@ class HttpSession:
     async def __send_request(
         self, method: str, endpoint: str, *args, **kwargs
     ) -> ClientResponse:
-        if not self.is_active:
+        if not self.is_closed:
             raise errors.SessionIsNotInitialized(
                 "Instance session is not active. Re-create instance"
             )
@@ -124,11 +124,13 @@ class HttpSession:
         )
 
     @property
-    def is_active(self):
-        return True if self.__session and not self.__session.closed else False
+    def is_closed(self):
+        return (
+            True if not self.__session or not self.__session.closed else False
+        )
 
     async def close(self):
-        if self.is_active:
+        if self.is_closed:
             await self.__session.close()
             self.__session = None
             return True
