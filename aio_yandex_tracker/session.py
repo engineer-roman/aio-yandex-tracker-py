@@ -5,7 +5,7 @@ from typing import Optional, Union
 from aio_yandex_tracker import const, errors
 from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.types import HEADERS_OBJECT
-from aiohttp import ClientResponse, ClientSession
+from aiohttp import ClientResponse, ClientSession, ContentTypeError
 
 
 class HttpSession:
@@ -15,18 +15,20 @@ class HttpSession:
         org_id: Union[int, str],
         api_root: Optional[str] = None,
         api_version: Optional[str] = None,
+        api_schema: Optional[str] = None,
         headers: Optional[HEADERS_OBJECT] = None,
         response_encoding: str = const.RESPONSE_ENCODING_DEFAULT,
         loop: Optional[AbstractEventLoop] = None,
     ):
         api_root = api_root or const.API_URL_ROOT
         api_version = api_version or const.API_VERSION_NAME.V2.value
-        self.base_url = f"{api_root}/{api_version}/"
+        api_schema = api_schema or const.API_URL_SCHEMA
+        self.base_url = f"{api_schema}://{api_root}/{api_version}/"
         user_headers = headers or {}
         self.headers = {
             **const.API_HEADERS_DEFAULT,
             **user_headers,
-            "Host": self.base_url,
+            "Host": api_root.split("/")[0],
             "Authorization": f"OAuth {token}",
             "X-Org-ID": str(org_id),
         }
@@ -56,7 +58,7 @@ class HttpSession:
         await self.validate_http_response(response, self.response_encoding)
         try:
             data = await response.json(encoding=self.response_encoding)
-        except JSONDecodeError:
+        except (ContentTypeError, JSONDecodeError):
             data = await response.text(encoding=self.response_encoding)
 
         return HttpResponse(
@@ -125,13 +127,9 @@ class HttpSession:
     def is_active(self):
         return True if self.__session and not self.__session.closed else False
 
-    def close(self):
-        if not self.__session._loop.is_closed():
-            self.__session._loop.run_until_complete(self.__session.close())
+    async def close(self):
+        if self.is_active:
+            await self.__session.close()
             self.__session = None
             return True
         return False
-
-    def __del__(self):
-        if self.is_active:
-            self.close()
