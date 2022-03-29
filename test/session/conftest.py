@@ -8,8 +8,8 @@ from pytest import fixture
 @fixture
 def base_session() -> Callable:
     session_preset = {
-        "token": "Test Token",
-        "org_id": 12345,
+        "token": const.TEST_TRACKER_TOKEN,
+        "org_id": const.TEST_TRACKER_ORG_ID,
     }
 
     def get_session(loop=None):
@@ -21,8 +21,8 @@ def base_session() -> Callable:
 @fixture
 def customized_session() -> Tuple[Callable, types.SESSION_PRESET]:
     session_preset = {
-        "token": "Test Token",
-        "org_id": 12345,
+        "token": const.TEST_TRACKER_TOKEN,
+        "org_id": const.TEST_TRACKER_ORG_ID,
         "api_root": (
             f"localhost.localdomain:{const.TEST_AIOHTTP_SERVER_PORT}"
         ),
