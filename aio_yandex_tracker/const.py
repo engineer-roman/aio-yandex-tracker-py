@@ -1,9 +1,18 @@
 from enum import Enum
 from http import HTTPStatus
 
+
+class API_VERSION_NAME(Enum):
+    V1 = "v1"
+    V2 = "v2"
+
+
 API_HEADERS_DEFAULT = {"Content-type": "application/json"}
 API_URL_SCHEMA = "https"
 API_URL_ROOT = "api.tracker.yandex.net"
+
+API_ISSUES_URL = "/issues"
+API_ISSUES_DIRECT_URL = "/issues/{id}"
 
 HTTP_METHODS = ["get", "post", "put", "delete"]
 RESPONSE_ENCODING_DEFAULT = "utf-8"
@@ -18,11 +27,6 @@ RESPONSE_CODES_RETRY = (
     HTTPStatus.SERVICE_UNAVAILABLE,
     HTTPStatus.GATEWAY_TIMEOUT,
 )
-
-
-class API_VERSION_NAME(Enum):
-    V1 = "v1"
-    V2 = "v2"
 
 
 # Tests

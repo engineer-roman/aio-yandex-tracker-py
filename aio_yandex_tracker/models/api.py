@@ -1,6 +1,6 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
-from aio_yandex_tracker import errors
+from aio_yandex_tracker import const, errors
 from aio_yandex_tracker.session import HttpSession
 
 
@@ -43,21 +43,34 @@ class Issue:
     def __str__(self):
         return self.key
 
+    async def reload(self) -> Union["Issue", bool]:
+        if not self.key:
+            return False
+        data = await self.__session.request(
+            "get", const.API_ISSUES_DIRECT_URL.format(id=self.key)
+        )
+        self.original_payload = data.body
+
     @property
     def original_payload(self) -> Dict[str, Any]:
         return self.__original_payload
 
     @original_payload.setter
     def original_payload(self, value: Dict[str, Any]) -> None:
-        self.parse_payload(value)
+        self.set_fields(value)
         self.__original_payload = value
 
-    def parse_payload(self, payload: Dict[str, Any]) -> None:
+    def set_fields(self, payload: Dict[str, Any]) -> None:
         for name, meta in self.__fields.items():
             required, alias = meta
+            alias = alias or name
+            if alias.startswith("__") or alias == "original_payload":
+                # FIXME add debug logging: we don't want to override
+                #  class attributes
+                continue
+
             try:
                 value = payload[name]
-                alias = alias or name
                 setattr(self, alias, value)
             except KeyError:
                 if not required:
@@ -84,10 +97,8 @@ class Issue:
 class Issues:
     def __init__(self, session: HttpSession):
         self.__session = session
-        self.__base_url = "/issues"
-        self.__direct_url = f"{self.__base_url}/{{id}}"
 
     async def get(self, entity_id: str) -> Issue:
-        endpoint = self.__direct_url.format(id=entity_id)
+        endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
         response = await self.__session.request("get", endpoint)
         return Issue(response.body, self.__session)
