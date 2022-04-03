@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Dict, Union
 
 from aio_yandex_tracker import const, errors
@@ -65,8 +66,6 @@ class Issue:
             required, alias = meta
             alias = alias or name
             if alias.startswith("__") or alias == "original_payload":
-                # FIXME add debug logging: we don't want to override
-                #  class attributes
                 continue
 
             try:
@@ -101,4 +100,10 @@ class Issues:
     async def get(self, entity_id: str) -> Issue:
         endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
         response = await self.__session.request("get", endpoint)
+        return Issue(response.body, self.__session)
+
+    async def create(self, payload: Dict[str, Any]) -> Issue:
+        endpoint = const.API_ISSUES_URL
+        payload.setdefault("unique", uuid.uuid4().hex)
+        response = await self.__session.request("post", endpoint, json=payload)
         return Issue(response.body, self.__session)

@@ -95,6 +95,9 @@ class HttpSession:
             # FIXME log exception
             error_body = None
 
+        # if error_body:
+        #     # FIXME add logging
+        #     pass
         exc_class = errors.HTTP_ERRORS_MAPPING.get(
             response.status, errors.ApiUnavailableError
         )(
