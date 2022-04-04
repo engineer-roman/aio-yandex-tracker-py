@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from aio_yandex_tracker import const, errors
 from aio_yandex_tracker.session import HttpSession
@@ -97,9 +97,13 @@ class Issues:
     def __init__(self, session: HttpSession):
         self.__session = session
 
-    async def get(self, entity_id: str) -> Issue:
+    async def get(
+        self, entity_id: str, params: Optional[Dict] = None
+    ) -> Issue:
         endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
-        response = await self.__session.request("get", endpoint)
+        response = await self.__session.request(
+            "get", endpoint, params=params or {}
+        )
         return Issue(response.body, self.__session)
 
     async def create(self, payload: Dict[str, Any]) -> Issue:
@@ -107,3 +111,55 @@ class Issues:
         payload.setdefault("unique", uuid.uuid4().hex)
         response = await self.__session.request("post", endpoint, json=payload)
         return Issue(response.body, self.__session)
+
+    async def edit(
+        self,
+        entity_id: str,
+        payload: Dict[str, Any],
+        params: Optional[Dict] = None,
+    ) -> Issue:
+        endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
+        response = await self.__session.request(
+            "patch", endpoint, params=params or {}, json=payload
+        )
+        return Issue(response.body, self.__session)
+
+    async def move(
+        self, entity_id: str, queue: str, params: Optional[Dict] = None
+    ) -> Issue:
+        endpoint = const.API_ISSUES_MOVE_URL.format(id=entity_id)
+        params = params or {}
+        params["queue"] = queue
+        response = await self.__session.request(
+            "post", endpoint, params=params or {}
+        )
+        return Issue(response.body, self.__session)
+
+    async def count(
+        self,
+        filter_params: Optional[Dict] = None,
+        search_query: Optional[str] = None,
+        params: Optional[Dict] = None,
+    ) -> Union[Dict, int]:
+        endpoint = const.API_ISSUES_COUNT_URL.format()
+        payload = {}
+        if filter_params:
+            payload["filter"] = filter_params
+        elif search_query:
+            payload["query"] = search_query
+
+        response = await self.__session.request(
+            "post", endpoint, params=params or {}, json=payload
+        )
+        return response.body
+
+    async def search(
+        self,
+        search_request: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+    ) -> Union[Dict, int]:
+        endpoint = const.API_ISSUES_SEARCH_URL.format()
+        response = await self.__session.request(
+            "post", endpoint, params=params or {}, json=search_request or {}
+        )
+        return response.body
