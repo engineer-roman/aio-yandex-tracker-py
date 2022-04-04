@@ -12,9 +12,12 @@ API_URL_SCHEMA = "https"
 API_URL_ROOT = "api.tracker.yandex.net"
 
 API_ISSUES_URL = "/issues"
-API_ISSUES_DIRECT_URL = "/issues/{id}"
+API_ISSUES_DIRECT_URL = f"{API_ISSUES_URL}/{{id}}"
+API_ISSUES_MOVE_URL = f"{API_ISSUES_URL}/{{id}}/_move"
+API_ISSUES_COUNT_URL = f"{API_ISSUES_URL}/_count"
+API_ISSUES_SEARCH_URL = f"{API_ISSUES_URL}/_search"
 
-HTTP_METHODS = ["get", "post", "put", "delete"]
+HTTP_METHODS = ["get", "patch", "post", "put", "delete"]
 RESPONSE_ENCODING_DEFAULT = "utf-8"
 RESPONSE_CODES_OK = (
     HTTPStatus.OK,
