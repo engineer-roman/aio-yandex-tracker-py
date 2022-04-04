@@ -48,7 +48,7 @@ class Issue:
         if not self.key:
             return False
         data = await self.__session.request(
-            "get", const.API_ISSUES_DIRECT_URL.format(id=self.key)
+            "get", const.ISSUES_DIRECT_URL.format(id=self.key)
         )
         self.original_payload = data.body
 
@@ -100,14 +100,14 @@ class Issues:
     async def get(
         self, entity_id: str, params: Optional[Dict] = None
     ) -> Issue:
-        endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
+        endpoint = const.ISSUES_DIRECT_URL.format(id=entity_id)
         response = await self.__session.request(
             "get", endpoint, params=params or {}
         )
         return Issue(response.body, self.__session)
 
     async def create(self, payload: Dict[str, Any]) -> Issue:
-        endpoint = const.API_ISSUES_URL
+        endpoint = const.ISSUES_URL
         payload.setdefault("unique", uuid.uuid4().hex)
         response = await self.__session.request("post", endpoint, json=payload)
         return Issue(response.body, self.__session)
@@ -118,7 +118,7 @@ class Issues:
         payload: Dict[str, Any],
         params: Optional[Dict] = None,
     ) -> Issue:
-        endpoint = const.API_ISSUES_DIRECT_URL.format(id=entity_id)
+        endpoint = const.ISSUES_DIRECT_URL.format(id=entity_id)
         response = await self.__session.request(
             "patch", endpoint, params=params or {}, json=payload
         )
@@ -127,7 +127,7 @@ class Issues:
     async def move(
         self, entity_id: str, queue: str, params: Optional[Dict] = None
     ) -> Issue:
-        endpoint = const.API_ISSUES_MOVE_URL.format(id=entity_id)
+        endpoint = const.ISSUES_MOVE_URL.format(id=entity_id)
         params = params or {}
         params["queue"] = queue
         response = await self.__session.request(
@@ -141,7 +141,7 @@ class Issues:
         search_query: Optional[str] = None,
         params: Optional[Dict] = None,
     ) -> Union[Dict, int]:
-        endpoint = const.API_ISSUES_COUNT_URL.format()
+        endpoint = const.ISSUES_COUNT_URL.format()
         payload = {}
         if filter_params:
             payload["filter"] = filter_params
@@ -158,7 +158,7 @@ class Issues:
         search_request: Optional[Dict] = None,
         params: Optional[Dict] = None,
     ) -> Union[Dict, int]:
-        endpoint = const.API_ISSUES_SEARCH_URL.format()
+        endpoint = const.ISSUES_SEARCH_URL.format()
         response = await self.__session.request(
             "post", endpoint, params=params or {}, json=search_request or {}
         )
