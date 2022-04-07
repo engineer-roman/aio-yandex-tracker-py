@@ -46,15 +46,19 @@ class IncorrectDataError(HttpError):
     pass
 
 
-class SessionIsNotInitialized(BaseException):
+class SessionNotInitializedError(BaseException):
     pass
 
 
-class UnknownHttpMethod(BaseException):
+class UnknownHttpMethodError(BaseException):
     pass
 
 
 class FieldMissingError(BaseException):
+    pass
+
+
+class PaginationProhibitedError(BaseException):
     pass
 
 

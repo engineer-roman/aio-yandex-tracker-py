@@ -58,7 +58,7 @@ class HttpSession:
         return HttpResponse(
             response.status,
             response.reason,
-            response.url.human_repr(),
+            response.url,
             response.headers,
             await response.json(encoding=self.response_encoding),
         )
@@ -67,7 +67,7 @@ class HttpSession:
         self, method: str, endpoint: str, *args, **kwargs
     ) -> ClientResponse:
         if not self.is_closed:
-            raise errors.SessionIsNotInitialized(
+            raise errors.SessionNotInitializedError(
                 "Instance session is not active. Re-create instance"
             )
         http_method = self.validate_http_method(self.__session, method)
@@ -116,7 +116,7 @@ class HttpSession:
             result = getattr(session, method, None)
             if result:
                 return result
-        raise errors.UnknownHttpMethod(
+        raise errors.UnknownHttpMethodError(
             f"Unknown method for HTTP Session: {method}"
         )
 
