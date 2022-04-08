@@ -12,7 +12,7 @@ class BaseEntity:
     _fields = {}
 
     def __init__(self, payload: Dict[str, Any], session: HttpSession):
-        self.__session = session
+        self._session = session
         self.original_payload = payload
 
     @property
@@ -63,13 +63,19 @@ class Collection(list):
         session: HttpSession,
         entity_cls: Type[BaseEntity],
         method: str,
+        parent_id: Optional[str] = None,
         payload: Optional[Dict] = None,
     ):
+        parent_id_dict = {"__parent_id": parent_id} if parent_id else {}
         super(Collection, self).__init__(
-            [entity_cls(x, session) for x in response.body]
+            [
+                entity_cls({**x, **parent_id_dict}, session)
+                for x in response.body
+            ]
         )
         self.__session = session
         self._entity_cls = entity_cls
+        self._parent_id = parent_id
         self._url = response.url
         self._endpoint = response.url.human_repr()[
             len(session.base_url) :  # noqa E203
@@ -87,6 +93,10 @@ class Collection(list):
     @property
     def total_pages(self) -> int:
         return self._total_pages
+
+    @property
+    def total_entities(self) -> int:
+        return self._total_entities
 
     async def turn_page(self, page: int):
         if page < 1 or page > self._total_pages or page == self._page:
@@ -121,8 +131,41 @@ class Priority:
     pass
 
 
-class Transition:
-    pass
+class Transition(BaseEntity):
+    _fields = {
+        "self": (True, "self_url"),
+        "id": (True, None),
+        "display": (True, None),
+        "to": (False, None),
+    }
+    __parent_id = None
+    id = None
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} <{self.id}>"
+
+    def __str__(self):
+        return self.id
+
+    async def apply(
+        self, payload: Optional[Dict] = None, comment: Optional[str] = None
+    ) -> Collection:
+        endpoint = const.TRANSITIONS_EXEC_URL.format(
+            id=self.__parent_id, transition_id=self.id
+        )
+        payload = payload or {}
+        if comment:
+            payload["comment"] = comment
+
+        response = await self._session.request("post", endpoint, payload)
+        return Collection(
+            response,
+            self._session,
+            Transition,
+            "post",
+            self.__parent_id,
+            payload,
+        )
 
 
 class Issue(BaseEntity):
@@ -130,31 +173,36 @@ class Issue(BaseEntity):
         "self": (True, "self_url"),
         "id": (True, None),
         "key": (True, None),
-        "version": (False, None),
-        "lastCommentUpdatedAt": (False, "last_comment_updated_at"),
-        "summary": (False, None),
-        "parent": (False, None),
         "aliases": (False, None),
-        "updatedBy": (False, "updated_by"),
-        "description": (False, None),
-        "sprint": (False, None),
-        "type": (False, None),
-        "priority": (False, None),
-        "createdAt": (False, "created_at"),
-        "followers": (False, None),
-        "createdBy": (False, "created_by"),
-        "votes": (False, None),
         "assignee": (False, None),
-        "queue": (False, None),
-        "updatedAt": (False, "updated_at"),
-        "status": (False, None),
-        "previousStatus": (False, "previous_status"),
+        "createdAt": (False, "created_at"),
+        "createdBy": (False, "created_by"),
+        "description": (False, None),
         "favorite": (False, None),
+        "followers": (False, None),
+        "lastCommentUpdatedAt": (False, "last_comment_updated_at"),
+        "parent": (False, None),
+        "previousStatus": (False, "previous_status"),
+        "priority": (False, None),
+        "queue": (False, None),
+        "resolution": (False, None),
+        "sprint": (False, None),
+        "status": (False, None),
+        "statusStartTime": (False, "status_start_time"),
+        "start": (False, None),
+        "summary": (False, None),
+        "tags": (False, None),
+        "type": (False, None),
+        "unique": (False, None),
+        "updatedAt": (False, "updated_at"),
+        "updatedBy": (False, "updated_by"),
+        "version": (False, None),
+        "votes": (False, None),
     }
     key = None
 
     def __repr__(self):
-        return f"{self.__class__.__name__} {self.key}"
+        return f"{self.__class__.__name__} <{self.key}>"
 
     def __str__(self):
         return self.key
@@ -162,10 +210,33 @@ class Issue(BaseEntity):
     async def reload(self) -> Union["Issue", bool]:
         if not self.key:
             return False
-        data = await self.__session.request(
+        data = await self._session.request(
             "get", const.ISSUES_DIRECT_URL.format(id=self.key)
         )
         self.original_payload = data.body
+
+    async def transitions(self) -> Collection:
+        endpoint = const.TRANSITIONS_URL.format(id=self.key)
+        response = await self._session.request("get", endpoint)
+        return Collection(response, self._session, Transition, "get", self.key)
+
+    async def apply_transition(
+        self,
+        transition_id: str,
+        payload: Optional[Dict] = None,
+        comment: Optional[str] = None,
+    ) -> Collection:
+        endpoint = const.TRANSITIONS_EXEC_URL.format(
+            id=self.key, transition_id=transition_id
+        )
+        payload = payload or {}
+        if comment:
+            payload["comment"] = comment
+
+        response = await self._session.request("post", endpoint, json=payload)
+        return Collection(
+            response, self._session, Transition, "post", self.key, payload
+        )
 
 
 class Issues:
@@ -189,6 +260,13 @@ class Issues:
             "get", endpoint, params=params or {}
         )
         return Issue(response.body, self.__session)
+
+    async def transitions(self, entity_id: str) -> Collection:
+        endpoint = const.TRANSITIONS_URL.format(id=entity_id)
+        response = await self.__session.request("get", endpoint)
+        return Collection(
+            response, self.__session, Transition, "get", entity_id
+        )
 
     async def create(self, payload: Dict[str, Any]) -> Issue:
         endpoint = const.ISSUES_URL
