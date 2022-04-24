@@ -127,8 +127,15 @@ class Collection(list):
         return await self.turn_page(self._page - 1)
 
 
-class Priority:
-    pass
+class Priority(BaseEntity):
+    _field = {
+        "self": (True, "self_url"),
+        "id": (True, None),
+        "key": (True, None),
+        "name": (True, None),
+        "order": (True, None),
+        "version": (False, None),
+    }
 
 
 class Transition(BaseEntity):
@@ -239,18 +246,18 @@ class Issue(BaseEntity):
         )
 
 
+class Priorities:
+    __single_entity_cls = Priority
+
+    def __init__(self, session: HttpSession):
+        self.__session = session
+
+
 class Issues:
     __single_entity_cls = Issue
 
     def __init__(self, session: HttpSession):
         self.__session = session
-
-    def model_response(self, response: HttpResponse) -> Union[BaseEntity, int]:
-        if isinstance(response.body, dict):
-            return self.__single_entity_cls(response.body, self.__session)
-        elif isinstance(response.body, list):
-            return 0
-        return response.body
 
     async def get(
         self, entity_id: str, params: Optional[Dict] = None
