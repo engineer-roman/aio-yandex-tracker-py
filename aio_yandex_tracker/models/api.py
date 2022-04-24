@@ -44,7 +44,7 @@ class BaseEntity:
 
     def as_dict(self, original_names: bool = False) -> Dict[str, Any]:
         output = {}
-        for name, meta in self.__fields.items():
+        for name, meta in self._fields.items():
             attr_name = meta[1] or name
             field_name = name if original_names else attr_name
             try:
@@ -77,10 +77,11 @@ class Collection(list):
         self._entity_cls = entity_cls
         self._parent_id = parent_id
         self._url = response.url
-        self._endpoint = response.url.human_repr()[
-            len(session.base_url) :  # noqa E203
+        self._url_params = {**self._url.query}
+        self._endpoint = response.url.path[
+            len(session.api_version) + 2 :  # noqa E203
         ]
-        self._page = int(self._url.query.get("page", "1"))
+        self._page = int(self._url_params.get("page", "1"))
         self._total_pages = int(response.headers.get("X-Total-Pages", 0))
         self._total_entities = int(response.headers.get("X-Total-Count", 0))
         self._request_method = method
@@ -103,13 +104,12 @@ class Collection(list):
             raise errors.PaginationProhibitedError(
                 f"Cannot turn page to {page}"
             )
-        page = page or (self._page + 1)
-        if self.page >= self.total_pages:
+        if self._page >= self.total_pages:
             raise errors.PaginationProhibitedError("No next page found")
         response = await self.__session.request(
             self._request_method,
             self._endpoint,
-            params={**self._url.query, "page": page},
+            params={**self._url_params, "page": page},
             json=self._request_payload,
         )
         return self.__class__(

@@ -12,7 +12,7 @@ API_URL_SCHEMA = "https"
 API_URL_ROOT = "api.tracker.yandex.net"
 
 # API URLs
-ISSUES_URL = "/issues"
+ISSUES_URL = "issues"
 ISSUES_COUNT_URL = f"{ISSUES_URL}/_count"
 ISSUES_SEARCH_URL = f"{ISSUES_URL}/_search"
 ISSUES_DIRECT_URL = f"{ISSUES_URL}/{{id}}"
@@ -20,7 +20,7 @@ ISSUES_MOVE_URL = f"{ISSUES_DIRECT_URL}/_move"
 TRANSITIONS_URL = f"{ISSUES_DIRECT_URL}/transitions"
 TRANSITIONS_EXEC_URL = f"{TRANSITIONS_URL}/{{transition_id}}/_execute"
 
-PRIORITIES_URL = "/priorities"
+PRIORITIES_URL = "priorities"
 
 
 # ---

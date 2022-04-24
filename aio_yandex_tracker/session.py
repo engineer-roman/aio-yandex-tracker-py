@@ -20,9 +20,10 @@ class HttpSession:
         loop: Optional[AbstractEventLoop] = None,
     ):
         api_root = api_root or const.API_URL_ROOT
-        api_version = api_version or const.API_VERSION_NAME.V2.value
         api_schema = api_schema or const.API_URL_SCHEMA
-        self.base_url = f"{api_schema}://{api_root}/{api_version}"
+        self.api_version = api_version or const.API_VERSION_NAME.V2.value
+        self.base_url = f"{api_schema}://{api_root}"
+        self._api_url = "{base}/{version}/{endpoint}"
         user_headers = headers or {}
         self.headers = {
             **const.API_HEADERS_DEFAULT,
@@ -42,12 +43,24 @@ class HttpSession:
         retry = 0
         retry_limit = 0
         response = await self.__send_request(
-            method, self.base_url + endpoint, *args, **kwargs
+            method,
+            self._api_url.format(
+                base=self.base_url, version=self.api_version, endpoint=endpoint
+            ),
+            *args,
+            **kwargs,
         )
         # FIXME add retries settings
         while retry < retry_limit and self.retry_needed(response):
             response = await self.__send_request(
-                method, self.base_url + endpoint, *args, **kwargs
+                method,
+                self._api_url.format(
+                    base=self.base_url,
+                    version=self.api_version,
+                    endpoint=endpoint,
+                ),
+                *args,
+                **kwargs,
             )
             if not self.retry_needed(response):
                 break
