@@ -128,14 +128,22 @@ class Collection(list):
 
 
 class Priority(BaseEntity):
-    _field = {
+    _fields = {
         "self": (True, "self_url"),
         "id": (True, None),
         "key": (True, None),
         "name": (True, None),
+        "description": (False, None),
         "order": (True, None),
         "version": (False, None),
     }
+    key = None
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} <{self.key}>"
+
+    def __str__(self):
+        return self.key
 
 
 class Transition(BaseEntity):
@@ -251,6 +259,13 @@ class Priorities:
 
     def __init__(self, session: HttpSession):
         self.__session = session
+
+    async def get(self, params: Optional[Dict] = None) -> Collection:
+        endpoint = const.PRIORITIES_URL
+        response = await self.__session.request(
+            "get", endpoint, params=params or {}
+        )
+        return Collection(response, self.__session, Priority, "get")
 
 
 class Issues:

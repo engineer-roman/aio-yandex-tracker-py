@@ -31,10 +31,15 @@ class YandexTracker:
             loop,
         )
         self.__issues = api_models.Issues(self.__session)
+        self.__priorities = api_models.Priorities(self.__session)
 
     @property
     def issues(self):
         return self.__issues
+
+    @property
+    def priorities(self):
+        return self.__priorities
 
     @property
     def is_closed(self):
