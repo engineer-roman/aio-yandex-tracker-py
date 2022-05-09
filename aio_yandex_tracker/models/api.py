@@ -196,7 +196,9 @@ class RestrictedPaginatedCollection(Collection):
         )
 
 
-ANY_COLLECTION_TYPE = Union[PaginatedCollection, RestrictedPaginatedCollection]
+ANY_COLLECTION_TYPE = Union[
+    Collection, PaginatedCollection, RestrictedPaginatedCollection
+]
 
 
 def create_collection(
@@ -206,7 +208,7 @@ def create_collection(
     method: str,
     parent_id: Optional[str] = None,
     payload: Optional[Dict] = None,
-) -> Union[ANY_COLLECTION_TYPE, Collection]:
+) -> ANY_COLLECTION_TYPE:
     collection_links_map = [
         (("first", "seek"), PaginatedCollection),
         (
@@ -228,6 +230,29 @@ def create_collection(
         return Collection(
             response, session, entity_cls, method, parent_id, payload
         )
+
+
+class Link(BaseEntity):
+    _fields = {
+        "self": (True, "self_url"),
+        "id": (True, None),
+        "type": (True, None),
+        "direction": (True, None),
+        "object": (True, None),
+        "createdAt": (True, "created_at"),
+        "updatedAt": (True, "updated_at"),
+        "createdBy": (True, "created_by"),
+        "updatedBy": (True, "updated_by"),
+        "assignee": (False, None),
+        "status": (False, None),
+    }
+    id = None
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} <{self.id}>"
+
+    def __str__(self):
+        return self.id
 
 
 class Priority(BaseEntity):
@@ -351,6 +376,13 @@ class Issue(BaseEntity):
         endpoint = const.ISSUES_DIRECT_URL.format(id=self.key)
         data = await self._session.fetch(endpoint, "get")
         self.original_payload = data.body
+
+    async def links(self) -> ANY_COLLECTION_TYPE:
+        endpoint = const.LINKS_URL.format(id=self.key)
+        response = await self._session.fetch(endpoint, "get")
+        return create_collection(
+            response, self._session, Link, "get", self.key
+        )
 
     async def transitions(self) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_URL.format(id=self.key)
