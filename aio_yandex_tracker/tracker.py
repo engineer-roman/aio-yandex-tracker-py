@@ -20,16 +20,20 @@ class YandexTracker:
         headers: Optional[HEADERS_OBJECT] = None,
         response_encoding: str = const.RESPONSE_ENCODING_DEFAULT,
         loop: Optional[AbstractEventLoop] = None,
+        retries: Optional[int] = const.BACKOFF_RETRIES,
+        retry_interval: Optional[int] = const.BACKOFF_RETRY_INTERVAL,
     ):
         self.__session = HttpSession(
-            token,
-            org_id,
-            api_root,
-            api_version,
-            api_schema,
-            headers,
-            response_encoding,
-            loop,
+            token=token,
+            org_id=org_id,
+            api_root=api_root,
+            api_version=api_version,
+            api_schema=api_schema,
+            headers=headers,
+            response_encoding=response_encoding,
+            loop=loop,
+            retries=retries,
+            retry_interval=retry_interval,
         )
         self.__issues = api_models.Issues(self.__session)
         self.__priorities = api_models.Priorities(self.__session)

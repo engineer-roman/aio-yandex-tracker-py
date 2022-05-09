@@ -1,4 +1,4 @@
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, sleep
 from typing import Dict, Optional, Union
 
 from aio_yandex_tracker import const, errors, types
@@ -18,9 +18,13 @@ class HttpSession:
         headers: Optional[HEADERS_OBJECT] = None,
         response_encoding: str = const.RESPONSE_ENCODING_DEFAULT,
         loop: Optional[AbstractEventLoop] = None,
+        retries: Optional[int] = const.BACKOFF_RETRIES,
+        retry_interval: Optional[int] = const.BACKOFF_RETRY_INTERVAL,
     ):
         api_root = api_root or const.API_URL_ROOT
         api_schema = api_schema or const.API_URL_SCHEMA
+        self.retries = retries
+        self.retry_interval = retry_interval
         self.api_version = api_version or const.API_VERSION_NAME.V2.value
         self.base_url = f"{api_schema}://{api_root}"
         self._api_url = "{base}/{version}/{endpoint}"
@@ -51,14 +55,14 @@ class HttpSession:
         self, url: str, method: str, *args, **kwargs
     ) -> HttpResponse:
         retry = 0
-        retry_limit = 0
+        retry_limit = kwargs.get("retries", self.retries)
+        retry_interval = kwargs.get("retry_interval", self.retry_interval)
         response = await self.__send_request(
             url,
             method,
             *args,
             **kwargs,
         )
-        # FIXME add backoff settings
         while retry < retry_limit and self.retry_needed(response):
             response = await self.__send_request(
                 url,
@@ -69,6 +73,7 @@ class HttpSession:
             if not self.retry_needed(response):
                 break
             retry += 1
+            await sleep(retry_interval)
 
         await self.validate_http_response(response, self.response_encoding)
         return HttpResponse(
