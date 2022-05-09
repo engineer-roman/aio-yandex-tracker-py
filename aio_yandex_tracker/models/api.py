@@ -149,48 +149,54 @@ class PaginatedCollection(Collection):
         )
 
 
-# class RestrictedPaginatedCollection(Collection):
-#     def __init__(
-#         self,
-#         response: HttpResponse,
-#         session: HttpSession,
-#         entity_cls: Type[BaseEntity],
-#         method: str,
-#         parent_id: Optional[str] = None,
-#         payload: Optional[Dict] = None,
-#     ):
-#         super(RestrictedPaginatedCollection, self).__init__(
-#             response,
-#             session,
-#             entity_cls,
-#             method,
-#             parent_id,
-#             payload,
-#         )
-#         self._next_page = ""
+class RestrictedPaginatedCollection(Collection):
+    def __init__(
+        self,
+        response: HttpResponse,
+        session: HttpSession,
+        entity_cls: Type[BaseEntity],
+        method: str,
+        parent_id: Optional[str] = None,
+        payload: Optional[Dict] = None,
+    ):
+        super(RestrictedPaginatedCollection, self).__init__(
+            response,
+            session,
+            entity_cls,
+            method,
+            parent_id,
+            payload,
+        )
+        links = session.serialize_headers_links(response.headers)
+        self._first_page_url = links.get("first")
+        self._next_page_url = links.get("next")
 
-# async def load_next(self):
-#     return await self.__load_page(self._next_page)
-#
-# async def load_prev(self):
-#     return await self.__load_page(self._page - 1)
-#
-# async def __load_page(self, url: str):
-# response = await self._session.fetch(
-#     self._endpoint,
-#     self._request_method,
-#     params={**self._url_params, "page": page},
-#     json=self._request_payload,
-# )
-# return self.__class__(
-#     response,
-#     self._session,
-#     self._entity_cls,
-#     self._request_method,
-#     self._request_payload,
-# )
+    async def load_first(self):
+        if not self._first_page_url:
+            raise errors.PaginationProhibitedError("No first page found")
+        return await self.__load_page(self._first_page_url)
 
-ANY_COLLECTION_TYPE = Union[PaginatedCollection]
+    async def load_next(self):
+        if not self._next_page_url:
+            raise errors.PaginationProhibitedError("No next page found")
+        return await self.__load_page(self._next_page_url)
+
+    async def __load_page(self, url: str):
+        response = await self._session.request(
+            url,
+            self._request_method,
+            json=self._request_payload,
+        )
+        return self.__class__(
+            response,
+            self._session,
+            self._entity_cls,
+            self._request_method,
+            self._request_payload,
+        )
+
+
+ANY_COLLECTION_TYPE = Union[PaginatedCollection, RestrictedPaginatedCollection]
 
 
 def create_collection(
@@ -361,12 +367,12 @@ class Issue(BaseEntity):
 
     async def changelog(
         self, params: Optional[Dict] = None
-    ) -> PaginatedCollection:
+    ) -> ANY_COLLECTION_TYPE:
         endpoint = const.CHANGELOG_URL.format(id=self.key)
         response = await self._session.fetch(
             endpoint, "get", params=params or {}
         )
-        return PaginatedCollection(
+        return create_collection(
             response, self._session, IssueChangelog, "get", self.key
         )
 
