@@ -37,35 +37,38 @@ class HttpSession:
             headers=self.headers, loop=loop
         )
 
+    async def fetch(self, endpoint, method, *args, **kwargs):
+        return await self.request(
+            self._api_url.format(
+                base=self.base_url, version=self.api_version, endpoint=endpoint
+            ),
+            method,
+            *args,
+            **kwargs,
+        )
+
     async def request(
-        self, method: str, endpoint: str, *args, **kwargs
+        self, url: str, method: str, *args, **kwargs
     ) -> HttpResponse:
         retry = 0
         retry_limit = 0
         response = await self.__send_request(
+            url,
             method,
-            self._api_url.format(
-                base=self.base_url, version=self.api_version, endpoint=endpoint
-            ),
             *args,
             **kwargs,
         )
-        # FIXME add retries settings
+        # FIXME add backoff settings
         while retry < retry_limit and self.retry_needed(response):
             response = await self.__send_request(
+                url,
                 method,
-                self._api_url.format(
-                    base=self.base_url,
-                    version=self.api_version,
-                    endpoint=endpoint,
-                ),
                 *args,
                 **kwargs,
             )
             if not self.retry_needed(response):
                 break
             retry += 1
-            # FIXME add logging
 
         await self.validate_http_response(response, self.response_encoding)
         return HttpResponse(
@@ -77,7 +80,7 @@ class HttpSession:
         )
 
     async def __send_request(
-        self, method: str, endpoint: str, *args, **kwargs
+        self, endpoint: str, method: str, *args, **kwargs
     ) -> ClientResponse:
         if not self.is_closed:
             raise errors.SessionNotInitializedError(

@@ -5,6 +5,8 @@ from aio_yandex_tracker import const, errors
 from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.session import HttpSession
 
+# from yarl import URL
+
 
 class BaseEntity:
     __original_payload = None
@@ -73,7 +75,7 @@ class Collection(list):
                 for x in response.body
             ]
         )
-        self.__session = session
+        self._session = session
         self._entity_cls = entity_cls
         self._parent_id = parent_id
         self._url = response.url
@@ -81,11 +83,31 @@ class Collection(list):
         self._endpoint = response.url.path[
             len(session.api_version) + 2 :  # noqa E203
         ]
-        self._page = int(self._url_params.get("page", "1"))
-        self._total_pages = int(response.headers.get("X-Total-Pages", 0))
-        self._total_entities = int(response.headers.get("X-Total-Count", 0))
         self._request_method = method
         self._request_payload = payload or {}
+
+
+class PaginatedCollection(Collection):
+    def __init__(
+        self,
+        response: HttpResponse,
+        session: HttpSession,
+        entity_cls: Type[BaseEntity],
+        method: str,
+        parent_id: Optional[str] = None,
+        payload: Optional[Dict] = None,
+    ):
+        super(PaginatedCollection, self).__init__(
+            response,
+            session,
+            entity_cls,
+            method,
+            parent_id,
+            payload,
+        )
+        self._page = int(self._url_params.get("page", 1))
+        self._total_pages = int(response.headers.get("X-Total-Pages", 0))
+        self._total_entities = int(response.headers.get("X-Total-Count", 0))
 
     @property
     def page(self) -> int:
@@ -99,32 +121,95 @@ class Collection(list):
     def total_entities(self) -> int:
         return self._total_entities
 
-    async def turn_page(self, page: int):
+    async def load_next(self):
+        return await self.load_page_num(self._page + 1)
+
+    async def load_prev(self):
+        return await self.load_page_num(self._page - 1)
+
+    async def load_page_num(self, page: int):
         if page < 1 or page > self._total_pages or page == self._page:
             raise errors.PaginationProhibitedError(
                 f"Cannot turn page to {page}"
             )
         if self._page >= self.total_pages:
             raise errors.PaginationProhibitedError("No next page found")
-        response = await self.__session.request(
-            self._request_method,
+        response = await self._session.fetch(
             self._endpoint,
+            self._request_method,
             params={**self._url_params, "page": page},
             json=self._request_payload,
         )
         return self.__class__(
             response,
-            self.__session,
+            self._session,
             self._entity_cls,
             self._request_method,
             self._request_payload,
         )
 
-    async def load_next(self):
-        return await self.turn_page(self._page + 1)
 
-    async def load_prev(self):
-        return await self.turn_page(self._page - 1)
+# class RestrictedPaginatedCollection(Collection):
+#     def __init__(
+#         self,
+#         response: HttpResponse,
+#         session: HttpSession,
+#         entity_cls: Type[BaseEntity],
+#         method: str,
+#         parent_id: Optional[str] = None,
+#         payload: Optional[Dict] = None,
+#     ):
+#         super(RestrictedPaginatedCollection, self).__init__(
+#             response,
+#             session,
+#             entity_cls,
+#             method,
+#             parent_id,
+#             payload,
+#         )
+#         self._next_page = ""
+
+# async def load_next(self):
+#     return await self.__load_page(self._next_page)
+#
+# async def load_prev(self):
+#     return await self.__load_page(self._page - 1)
+#
+# async def __load_page(self, url: str):
+# response = await self._session.fetch(
+#     self._endpoint,
+#     self._request_method,
+#     params={**self._url_params, "page": page},
+#     json=self._request_payload,
+# )
+# return self.__class__(
+#     response,
+#     self._session,
+#     self._entity_cls,
+#     self._request_method,
+#     self._request_payload,
+# )
+
+ANY_COLLECTION_TYPE = Union[PaginatedCollection]
+
+
+def create_collection(
+    response: HttpResponse,
+    session: HttpSession,
+    entity_cls: Type[BaseEntity],
+    method: str,
+    parent_id: Optional[str] = None,
+    payload: Optional[Dict] = None,
+) -> ANY_COLLECTION_TYPE:
+    link_types = [
+        v.split("; rel=")[1].strip('"')
+        for k, v in response.headers.items()
+        if k == "Link"
+    ]
+    if "seek" in link_types:
+        return PaginatedCollection(
+            response, session, entity_cls, method, parent_id, payload
+        )
 
 
 class Priority(BaseEntity):
@@ -164,7 +249,7 @@ class Transition(BaseEntity):
 
     async def apply(
         self, payload: Optional[Dict] = None, comment: Optional[str] = None
-    ) -> Collection:
+    ) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_EXEC_URL.format(
             id=self.__parent_id, transition_id=self.id
         )
@@ -172,8 +257,8 @@ class Transition(BaseEntity):
         if comment:
             payload["comment"] = comment
 
-        response = await self._session.request("post", endpoint, payload)
-        return Collection(
+        response = await self._session.fetch(endpoint, "post", payload)
+        return create_collection(
             response,
             self._session,
             Transition,
@@ -181,6 +266,26 @@ class Transition(BaseEntity):
             self.__parent_id,
             payload,
         )
+
+
+class IssueChangelog(BaseEntity):
+    _fields = {
+        "self": (True, "self_url"),
+        "type": (True, None),
+        "id": (True, None),
+        "issue": (True, None),
+        "updatedAt": (False, "updated_at"),
+        "updatedBy": (False, "updated_by"),
+        "transport": (True, None),
+        "fields": (False, None),
+    }
+    type = None
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} <{self.type}>"
+
+    def __str__(self):
+        return self.type
 
 
 class Issue(BaseEntity):
@@ -225,22 +330,23 @@ class Issue(BaseEntity):
     async def reload(self) -> Union["Issue", bool]:
         if not self.key:
             return False
-        data = await self._session.request(
-            "get", const.ISSUES_DIRECT_URL.format(id=self.key)
-        )
+        endpoint = const.ISSUES_DIRECT_URL.format(id=self.key)
+        data = await self._session.fetch(endpoint, "get")
         self.original_payload = data.body
 
-    async def transitions(self) -> Collection:
+    async def transitions(self) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_URL.format(id=self.key)
-        response = await self._session.request("get", endpoint)
-        return Collection(response, self._session, Transition, "get", self.key)
+        response = await self._session.fetch(endpoint, "get")
+        return create_collection(
+            response, self._session, Transition, "get", self.key
+        )
 
     async def apply_transition(
         self,
         transition_id: str,
         payload: Optional[Dict] = None,
         comment: Optional[str] = None,
-    ) -> Collection:
+    ) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_EXEC_URL.format(
             id=self.key, transition_id=transition_id
         )
@@ -248,9 +354,20 @@ class Issue(BaseEntity):
         if comment:
             payload["comment"] = comment
 
-        response = await self._session.request("post", endpoint, json=payload)
-        return Collection(
+        response = await self._session.fetch("post", endpoint, json=payload)
+        return create_collection(
             response, self._session, Transition, "post", self.key, payload
+        )
+
+    async def changelog(
+        self, params: Optional[Dict] = None
+    ) -> PaginatedCollection:
+        endpoint = const.CHANGELOG_URL.format(id=self.key)
+        response = await self._session.fetch(
+            endpoint, "get", params=params or {}
+        )
+        return PaginatedCollection(
+            response, self._session, IssueChangelog, "get", self.key
         )
 
 
@@ -260,12 +377,12 @@ class Priorities:
     def __init__(self, session: HttpSession):
         self.__session = session
 
-    async def get(self, params: Optional[Dict] = None) -> Collection:
+    async def get(self, params: Optional[Dict] = None) -> ANY_COLLECTION_TYPE:
         endpoint = const.PRIORITIES_URL
         response = await self.__session.request(
             "get", endpoint, params=params or {}
         )
-        return Collection(response, self.__session, Priority, "get")
+        return create_collection(response, self.__session, Priority, "get")
 
 
 class Issues:
@@ -278,22 +395,22 @@ class Issues:
         self, entity_id: str, params: Optional[Dict] = None
     ) -> Issue:
         endpoint = const.ISSUES_DIRECT_URL.format(id=entity_id)
-        response = await self.__session.request(
-            "get", endpoint, params=params or {}
+        response = await self.__session.fetch(
+            endpoint, "get", params=params or {}
         )
         return Issue(response.body, self.__session)
 
-    async def transitions(self, entity_id: str) -> Collection:
+    async def transitions(self, entity_id: str) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_URL.format(id=entity_id)
-        response = await self.__session.request("get", endpoint)
-        return Collection(
+        response = await self.__session.fetch(endpoint, "get")
+        return create_collection(
             response, self.__session, Transition, "get", entity_id
         )
 
     async def create(self, payload: Dict[str, Any]) -> Issue:
         endpoint = const.ISSUES_URL
         payload.setdefault("unique", uuid.uuid4().hex)
-        response = await self.__session.request("post", endpoint, json=payload)
+        response = await self.__session.fetch(endpoint, "post", json=payload)
         return Issue(response.body, self.__session)
 
     async def edit(
@@ -303,8 +420,8 @@ class Issues:
         params: Optional[Dict] = None,
     ) -> Issue:
         endpoint = const.ISSUES_DIRECT_URL.format(id=entity_id)
-        response = await self.__session.request(
-            "patch", endpoint, params=params or {}, json=payload
+        response = await self.__session.fetch(
+            endpoint, "patch", params=params or {}, json=payload
         )
         return Issue(response.body, self.__session)
 
@@ -314,8 +431,8 @@ class Issues:
         endpoint = const.ISSUES_MOVE_URL.format(id=entity_id)
         params = params or {}
         params["queue"] = queue
-        response = await self.__session.request(
-            "post", endpoint, params=params or {}
+        response = await self.__session.fetch(
+            endpoint, "post", params=params or {}
         )
         return Issue(response.body, self.__session)
 
@@ -332,8 +449,8 @@ class Issues:
         elif search_query:
             payload["query"] = search_query
 
-        response = await self.__session.request(
-            "post", endpoint, params=params or {}, json=payload
+        response = await self.__session.fetch(
+            endpoint, "post", params=params or {}, json=payload
         )
         return response.body
 
@@ -341,10 +458,12 @@ class Issues:
         self,
         search_request: Optional[Dict] = None,
         params: Optional[Dict] = None,
-    ) -> Collection:
+    ) -> ANY_COLLECTION_TYPE:
         endpoint = const.ISSUES_SEARCH_URL.format()
         payload = search_request or {}
-        response = await self.__session.request(
-            "post", endpoint, params=params or {}, json=payload
+        response = await self.__session.fetch(
+            endpoint, "post", params=params or {}, json=payload
         )
-        return Collection(response, self.__session, Issue, "post", payload)
+        return create_collection(
+            response, self.__session, Issue, "post", payload
+        )
