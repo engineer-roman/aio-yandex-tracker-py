@@ -206,14 +206,26 @@ def create_collection(
     method: str,
     parent_id: Optional[str] = None,
     payload: Optional[Dict] = None,
-) -> ANY_COLLECTION_TYPE:
-    link_types = [
-        v.split("; rel=")[1].strip('"')
-        for k, v in response.headers.items()
-        if k == "Link"
+) -> Union[ANY_COLLECTION_TYPE, Collection]:
+    collection_links_map = [
+        (("first", "seek"), PaginatedCollection),
+        (
+            (
+                "first",
+                "next",
+            ),
+            RestrictedPaginatedCollection,
+        ),
     ]
-    if "seek" in link_types:
-        return PaginatedCollection(
+    links = session.serialize_headers_links(response.headers)
+    response_link_types = set(links.keys())
+    for link_types, obj in collection_links_map:
+        if not (set(link_types) - response_link_types):
+            return obj(
+                response, session, entity_cls, method, parent_id, payload
+            )
+    else:
+        return Collection(
             response, session, entity_cls, method, parent_id, payload
         )
 
