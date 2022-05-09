@@ -1,7 +1,7 @@
 from asyncio import AbstractEventLoop
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
-from aio_yandex_tracker import const, errors
+from aio_yandex_tracker import const, errors, types
 from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.types import HEADERS_OBJECT
 from aiohttp import ClientResponse, ClientSession
@@ -135,6 +135,17 @@ class HttpSession:
         raise errors.UnknownHttpMethodError(
             f"Unknown method for HTTP Session: {method}"
         )
+
+    @staticmethod
+    def serialize_headers_links(
+        headers: types.HEADERS_OBJECT,
+    ) -> Dict[str, str]:
+        links = {}
+        for header, value in headers.items():
+            if header == "Link":
+                link, link_type = value.split("; rel=")
+                links[link_type.strip('""')] = link.strip("<>")
+        return links
 
     @property
     def is_closed(self):
