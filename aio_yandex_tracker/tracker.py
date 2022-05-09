@@ -1,9 +1,10 @@
 from asyncio import AbstractEventLoop
 from types import TracebackType
-from typing import Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 
-from aio_yandex_tracker import const
+from aio_yandex_tracker import const, types
 from aio_yandex_tracker.models import api as api_models
+from aio_yandex_tracker.models.http import HttpResponse
 from aio_yandex_tracker.session import HttpSession
 from aio_yandex_tracker.types import HEADERS_OBJECT
 
@@ -41,11 +42,29 @@ class YandexTracker:
     def priorities(self):
         return self.__priorities
 
+    async def raw_query(
+        self,
+        url: str,
+        method: str,
+        params: Optional[types.PARAMS_OBJECT] = None,
+        headers: Optional[types.HEADERS_OBJECT] = None,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> HttpResponse:
+        opts = {
+            "url": url,
+            "method": method,
+            "params": params or {},
+            "headers": headers or {},
+        }
+        if payload:
+            opts["json"] = payload
+        return await self.__session.request(**opts)
+
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self.__session.is_closed
 
-    async def close(self):
+    async def close(self) -> None:
         await self.__session.close()
 
     async def __aenter__(self) -> "YandexTracker":
