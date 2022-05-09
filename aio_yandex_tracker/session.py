@@ -1,4 +1,5 @@
 from asyncio import AbstractEventLoop, sleep
+from http import HTTPStatus
 from typing import Dict, Optional, Union
 
 from aio_yandex_tracker import const, errors, types
@@ -73,7 +74,11 @@ class HttpSession:
             if not self.retry_needed(response):
                 break
             retry += 1
-            await sleep(retry_interval)
+            # TODO add log message
+            if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+                await sleep(5)
+            else:
+                await sleep(retry_interval)
 
         await self.validate_http_response(response, self.response_encoding)
         return HttpResponse(
