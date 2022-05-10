@@ -384,6 +384,18 @@ class Issue(BaseEntity):
             response, self._session, Link, "get", self.key
         )
 
+    async def add_link(self, relation_type: str, issue: str) -> Link:
+        endpoint = const.LINKS_URL.format(id=self.key)
+        payload = {
+            "relationship": relation_type,
+            "issue": issue,
+        }
+        response = await self._session.fetch(endpoint, "post", json=payload)
+        return Link(response.body, self._session)
+
+    async def delete_link(self, link_id: int) -> None:
+        pass
+
     async def transitions(self) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_URL.format(id=self.key)
         response = await self._session.fetch(endpoint, "get")
