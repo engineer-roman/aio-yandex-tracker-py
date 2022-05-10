@@ -394,7 +394,8 @@ class Issue(BaseEntity):
         return Link(response.body, self._session)
 
     async def delete_link(self, link_id: int) -> None:
-        pass
+        endpoint = const.LINKS_DIRECT_URL.format(id=self.key, link_id=link_id)
+        await self._session.fetch(endpoint, "delete")
 
     async def transitions(self) -> ANY_COLLECTION_TYPE:
         endpoint = const.TRANSITIONS_URL.format(id=self.key)
